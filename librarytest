@@ -34,9 +34,9 @@ local library = {
     hovers = {},
     Relations = {},
     folders = {
-        main = "notKyronwarelol",
-        assets = "notKyronwarelol/Images",
-        configs = "notKyronwarelol/Configs"
+        main = "queen.vip",
+        assets = "queen.vip/Images",
+        configs = "queen.vip/Configs"
     },
     shared = {
         initialized = false,
