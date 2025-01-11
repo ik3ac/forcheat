@@ -80,7 +80,7 @@ local theme = {
     cursoroutline = Color3.fromRGB(48, 77, 117),
     
     font = 2,
-    textsize = 17
+    textsize = 30
 }
 -- // utility Functions
 do
