@@ -1,0 +1,441 @@
+------------------------------------ HOL UP ------------------------------------
+repeat wait() until game:IsLoaded()
+local LoadingTime = tick();
+
+LPH_NO_VIRTUALIZE = function(a) return a end
+LPH_NO_UPVALUES = function(a) return a end
+------------------------------------ REPO ------------------------------------
+local repo = 'https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/'
+------------------------------------ LINKS ------------------------------------
+local Library = loadstring(game:HttpGet(repo .. 'Library.lua'))()
+local ThemeManager = loadstring(game:HttpGet(repo .. 'addons/ThemeManager.lua'))()
+local SaveManager = loadstring(game:HttpGet(repo .. 'addons/SaveManager.lua'))()
+
+Library:Notify('Loading UI...');
+wait(3)
+-------------
+local Window = Library:CreateWindow({
+    Title = 'Финальная остановка 2 [6.9]',
+    Center = true, 
+    AutoShow = true,
+})
+
+
+local Tabs = {
+    Aimbot = Window:AddTab('Aim Assist'), 
+    Visuals = Window:AddTab('Visuals'),
+    Misc = Window:AddTab('Misc'),
+    ['UI Settings'] = Window:AddTab('Settings'),
+}
+------------------------------------ SECTIONS ------------------------------------
+local AimbotSec2 = Tabs.Aimbot:AddLeftGroupbox('Aim')
+--local AimbotSec2 = Tabs.Legitbot:AddRightGroupbox('Aim Assist')
+
+local MenuGroup = Tabs['UI Settings']:AddLeftGroupbox('Menu')
+
+local localplayer = game.Players.LocalPlayer
+local Character = localplayer.Character    
+local zombie = workspace.Zombies
+local CNew, CF, C3, Vec2, Vec3 = ColorSequence.new, CFrame.new, Color3.fromRGB, Vector2.new, Vector3.new
+--------
+------------------------------------ SILENT AIM STUFF ------------------------------------
+--// all of the silent aim was made by xaxa, credits to him.
+local SilentAimSettings = {
+    Enabled = false,
+    
+    ClassName = "Universal Silent Aim - Averiias, Stefanuk12, xaxa",
+    ToggleKey = "RightAlt",
+    
+    TeamCheck = false,
+    VisibleCheck = false, 
+    TargetPart = "HumanoidRootPart",
+    SilentAimMethod = "FindPartOnRayWithIgnoreList",
+    
+    FOVRadius = 45,
+    FOVVisible = false,
+    ShowSilentAimTarget = false, 
+    
+    MouseHitPrediction = false,
+    MouseHitPredictionAmount = 0.165,
+    HitChance = 100
+}
+
+-- variables
+getgenv().SilentAimSettings = Settings
+
+local ValidTargetParts = {"Head", "HumanoidRootPart"}
+local PredictionAmount = 0.165
+
+--// Aim Assist FOV Circles
+local as_fov_circleout1 = Drawing.new("Circle")
+as_fov_circleout1.Thickness = 1
+as_fov_circleout1.NumSides = 100
+as_fov_circleout1.Radius = 130
+as_fov_circleout1.Filled = false
+as_fov_circleout1.Visible = false
+as_fov_circleout1.ZIndex = 9
+as_fov_circleout1.Transparency = 1
+as_fov_circleout1.Color = C3(0, 0, 0)
+local as_fov_circle = Drawing.new("Circle")
+as_fov_circle.Thickness = 1
+as_fov_circle.NumSides = 100
+as_fov_circle.Radius = 130
+as_fov_circle.Filled = false
+as_fov_circle.Visible = false
+as_fov_circle.ZIndex = 10
+as_fov_circle.Transparency = 1
+as_fov_circle.Color = C3(54, 57, 241)
+local as_fov_circleout2 = Drawing.new("Circle")
+as_fov_circleout2.Thickness = 1
+as_fov_circleout2.NumSides = 100
+as_fov_circleout2.Radius = 130
+as_fov_circleout2.Filled = false
+as_fov_circleout2.Visible = false
+as_fov_circleout2.ZIndex = 9
+as_fov_circleout2.Transparency = 1
+as_fov_circleout2.Color = C3(0, 0, 0)
+--// Silent Aim FOV Circles
+local br_fov_circleout1 = Drawing.new("Circle")
+br_fov_circleout1.Thickness = 1
+br_fov_circleout1.NumSides = 100
+br_fov_circleout1.Radius = 130
+br_fov_circleout1.Filled = false
+br_fov_circleout1.Visible = false
+br_fov_circleout1.ZIndex = 9
+br_fov_circleout1.Transparency = 1
+br_fov_circleout1.Color = C3(0, 0, 0)
+local br_fov_circle = Drawing.new("Circle")
+br_fov_circle.Thickness = 1
+br_fov_circle.NumSides = 100
+br_fov_circle.Radius = 130
+br_fov_circle.Filled = false
+br_fov_circle.Visible = false
+br_fov_circle.ZIndex = 10
+br_fov_circle.Transparency = 1
+br_fov_circle.Color = C3(54, 57, 241)
+local br_fov_circleout2 = Drawing.new("Circle")
+br_fov_circleout2.Thickness = 1
+br_fov_circleout2.NumSides = 100
+br_fov_circleout2.Radius = 130
+br_fov_circleout2.Filled = false
+br_fov_circleout2.Visible = false
+br_fov_circleout2.ZIndex = 9
+br_fov_circleout2.Transparency = 1
+br_fov_circleout2.Color = C3(0, 0, 0)
+
+local ExpectedArguments = {
+    FindPartOnRayWithIgnoreList = {
+        ArgCountRequired = 3,
+        Args = {
+            "Instance", "Ray", "table", "boolean", "boolean"
+        }
+    }
+}
+
+function CalculateChance(Percentage)
+    -- // Floor the percentage
+    Percentage = math.floor(Percentage)
+
+    -- // Get the chance
+    local chance = math.floor(Random.new().NextNumber(Random.new(), 0, 1) * 100) / 100
+
+    -- // Return
+    return chance <= Percentage / 100
+end
+
+local function getPositionOnScreen(Vector)
+    local Vec3, OnScreen = currentCamera.WorldToScreenPoint(currentCamera, Vector)
+    return Vec2(Vec3.X, Vec3.Y), OnScreen
+end
+
+local function ValidateArguments(Args, RayMethod)
+    local Matches = 0
+    if #Args < RayMethod.ArgCountRequired then
+        return false
+    end
+    for Pos, Argument in next, Args do
+        if typeof(Argument) == RayMethod.Args[Pos] then
+            Matches = Matches + 1
+        end
+    end
+    return Matches >= RayMethod.ArgCountRequired
+end
+
+local function getDirection(Origin, Position)
+    return (Position - Origin).Unit * 1000
+end
+
+local function getMousePosition()
+    return userInput.GetMouseLocation(userInput)
+end
+
+local function IsPlayerVisible(Player)
+    local PlayerCharacter = Player.Character
+    local LocalPlayerCharacter = localPlayer.Character
+    
+    if not (PlayerCharacter or LocalPlayerCharacter) then return end 
+    
+    local PlayerRoot = game.FindFirstChild(PlayerCharacter, Options.TargetPart.Value) or game.FindFirstChild(PlayerCharacter, "HumanoidRootPart")
+    
+    if not PlayerRoot then return end 
+    
+    local CastPoints, IgnoreList = {PlayerRoot.Position, LocalPlayerCharacter, PlayerCharacter}, {LocalPlayerCharacter, PlayerCharacter}
+    local ObscuringObjects = #currentCamera.GetPartsObscuringTarget(currentCamera, CastPoints, IgnoreList)
+    
+    return ((ObscuringObjects == 0 and true) or (ObscuringObjects > 0 and false))
+end
+
+local function getClosestPlayer()
+    if not Options.TargetPart.Value then return end
+    local Closest
+    local DistanceToMouse
+    for _, Player in next, players.GetPlayers(players) do
+        if Player == localPlayer then continue end
+        if Toggles.TeamCheck.Value and Player.Team == localPlayer.Team then continue end
+
+        local Character = Player.Character
+        if not Character then continue end
+        
+        if Toggles.VisibleCheck.Value and not IsPlayerVisible(Player) then continue end
+
+        local HumanoidRootPart = game.FindFirstChild(Character, "HumanoidRootPart")
+        local Humanoid = game.FindFirstChild(Character, "Humanoid")
+        if not HumanoidRootPart or not Humanoid or Humanoid and Humanoid.Health <= 0 then continue end
+
+        local ScreenPosition, OnScreen = getPositionOnScreen(HumanoidRootPart.Position)
+        if not OnScreen then continue end
+
+        local Distance = (getMousePosition() - ScreenPosition).Magnitude
+        if Distance <= (DistanceToMouse or Options.Radius.Value or 2000) then
+            Closest = ((Options.TargetPart.Value == "Random" and Character[ValidTargetParts[math.random(1, #ValidTargetParts)]]) or Character[Options.TargetPart.Value])
+            DistanceToMouse = Distance
+        end
+    end
+    return Closest
+end
+----------------------------------------------------------------------------------
+--// Aim Assist FOV Circles
+local as_fov_circleout1 = Drawing.new("Circle")
+as_fov_circleout1.Thickness = 1
+as_fov_circleout1.NumSides = 100
+as_fov_circleout1.Radius = 130
+as_fov_circleout1.Filled = false
+as_fov_circleout1.Visible = false
+as_fov_circleout1.ZIndex = 9
+as_fov_circleout1.Transparency = 1
+as_fov_circleout1.Color = C3(0, 0, 0)
+local as_fov_circle = Drawing.new("Circle")
+as_fov_circle.Thickness = 1
+as_fov_circle.NumSides = 100
+as_fov_circle.Radius = 130
+as_fov_circle.Filled = false
+as_fov_circle.Visible = false
+as_fov_circle.ZIndex = 10
+as_fov_circle.Transparency = 1
+as_fov_circle.Color = C3(54, 57, 241)
+local as_fov_circleout2 = Drawing.new("Circle")
+as_fov_circleout2.Thickness = 1
+as_fov_circleout2.NumSides = 100
+as_fov_circleout2.Radius = 130
+as_fov_circleout2.Filled = false
+as_fov_circleout2.Visible = false
+as_fov_circleout2.ZIndex = 9
+as_fov_circleout2.Transparency = 1
+as_fov_circleout2.Color = C3(0, 0, 0)
+--// Silent Aim FOV Circles
+local br_fov_circleout1 = Drawing.new("Circle")
+br_fov_circleout1.Thickness = 1
+br_fov_circleout1.NumSides = 100
+br_fov_circleout1.Radius = 130
+br_fov_circleout1.Filled = false
+br_fov_circleout1.Visible = false
+br_fov_circleout1.ZIndex = 9
+br_fov_circleout1.Transparency = 1
+br_fov_circleout1.Color = C3(0, 0, 0)
+local br_fov_circle = Drawing.new("Circle")
+br_fov_circle.Thickness = 1
+br_fov_circle.NumSides = 100
+br_fov_circle.Radius = 130
+br_fov_circle.Filled = false
+br_fov_circle.Visible = false
+br_fov_circle.ZIndex = 10
+br_fov_circle.Transparency = 1
+br_fov_circle.Color = C3(54, 57, 241)
+local br_fov_circleout2 = Drawing.new("Circle")
+br_fov_circleout2.Thickness = 1
+br_fov_circleout2.NumSides = 100
+br_fov_circleout2.Radius = 130
+br_fov_circleout2.Filled = false
+br_fov_circleout2.Visible = false
+br_fov_circleout2.ZIndex = 9
+br_fov_circleout2.Transparency = 1
+br_fov_circleout2.Color = C3(0, 0, 0)
+
+-----------------------------------------------------------------------------
+-- Папка с зомби
+local zombieFolder = workspace:WaitForChild("Zombies")
+AimbotSec2:AddToggle('headbig_enabled', {Text = 'Always Head Hit', Default = false})
+
+local function maximizeHead(zombie)
+    if zombie and zombie:IsA("Model") and zombie:FindFirstChild("Head") then
+        local head = zombie.Head
+        if head:IsA("BasePart") then
+            head.Size = Vector3.new(15, 15, 15) -- Максимальный размер головы
+        end
+    end
+end
+
+-- Функция для восстановления обычного размера головы
+local function restoreHead(zombie)
+    if zombie and zombie:IsA("Model") and zombie:FindFirstChild("Head") then
+        local head = zombie.Head
+        if head:IsA("BasePart") then
+            head.Size = Vector3.new(2, 2, 2) -- Стандартный размер головы
+        end
+    end
+end
+
+-- Обработать всех существующих зомби
+for _, zombie in pairs(zombieFolder:GetChildren()) do
+    if Toggles.headbig_enabled.Value then
+        maximizeHead(zombie)
+    else
+        restoreHead(zombie)
+    end
+end
+
+-- Отслеживание появления новых зомби
+zombieFolder.ChildAdded:Connect(function(newZombie)
+    -- Проверяем, что новый зомби - это модель, и что у него есть голова
+    if newZombie:IsA("Model") and newZombie:FindFirstChild("Head") then
+        if Toggles.headbig_enabled.Value then
+            maximizeHead(newZombie)
+        else
+            restoreHead(newZombie)
+        end
+    end
+end)
+
+-- Добавление переключателя в интерфейс для включения/выключения
+
+Toggles.headbig_enabled:OnChanged(function()
+    -- При изменении состояния переключателя изменяем размер голов всех зомби
+    for _, zombie in pairs(zombieFolder:GetChildren()) do
+        if Toggles.headbig_enabled.Value then
+            maximizeHead(zombie)
+        else
+            restoreHead(zombie)
+        end
+    end
+end)
+
+-- Папка с зомби
+local zombieFolder = workspace:WaitForChild("Zombies")
+
+-- Таблица для хранения Highlight объектов
+local zombieHighlights = {}
+
+-- Функция для подсветки зомби
+local function highlightZombie(zombie)
+    if zombie and zombie:IsA("Model") and zombie:FindFirstChild("Head") then
+        -- Проверяем, если Highlight уже существует, не создаем новый
+        if not zombie:FindFirstChildOfClass("Highlight") then
+            -- Создаем Highlight объект
+            local highlight = Instance.new("Highlight")
+            highlight.Parent = zombie -- Устанавливаем Highlight в модель зомби
+            highlight.Adornee = zombie -- Устанавливаем, что подсвечиваем именно модель зомби
+            highlight.FillColor = Color3.fromRGB(255, 0, 0)  -- Цвет подсветки (красный)
+            highlight.FillTransparency = 0.5  -- Прозрачность подсветки
+            highlight.OutlineColor = Color3.fromRGB(255, 0, 0)  -- Цвет обводки
+            highlight.OutlineTransparency = 0.5  -- Прозрачность обводки
+            
+            -- Добавляем Highlight в таблицу для управления
+            table.insert(zombieHighlights, {zombie = zombie, highlight = highlight})
+        end
+    end
+end
+
+-- Функция для удаления подсветки
+local function removeHighlight(zombie)
+    for i, highlightData in ipairs(zombieHighlights) do
+        if highlightData.zombie == zombie then
+            highlightData.highlight:Destroy()  -- Удаляем Highlight
+            table.remove(zombieHighlights, i)  -- Убираем из таблицы
+            break
+        end
+    end
+end
+
+-- Обработать всех существующих зомби (независимо от их имени)
+for _, zombie in pairs(zombieFolder:GetChildren()) do
+    if zombie:IsA("Model") then
+        highlightZombie(zombie)
+    end
+end
+
+-- Отслеживание появления новых зомби
+zombieFolder.ChildAdded:Connect(function(newZombie)
+    if newZombie:IsA("Model") then
+        highlightZombie(newZombie)
+    end
+end)
+
+-- Добавление переключателя в интерфейс для включения/выключения подсветки
+AimbotSec2:AddToggle('highlight_enabled', {Text = 'Highlight Zombies', Default = true})
+
+Toggles.highlight_enabled:OnChanged(function()
+    if Toggles.highlight_enabled.Value then
+        -- Если подсветка включена, подсвечиваем все зомби
+        for _, zombie in pairs(zombieFolder:GetChildren()) do
+            if zombie:IsA("Model") then
+                highlightZombie(zombie)
+            end
+        end
+    else
+        -- Если подсветка выключена, удаляем подсветку всех зомби
+        for _, highlightData in pairs(zombieHighlights) do
+            highlightData.highlight:Destroy()
+        end
+        zombieHighlights = {}  -- Очищаем таблицу подсветки
+    end
+end)
+
+
+--------------------------------------------------------------------------------------
+MenuGroup:AddButton('Unload', function() Library:Unload() end)
+MenuGroup:AddLabel('Menu bind'):AddKeyPicker('MenuKeybind', { Default = 'End', NoUI = true, Text = 'Menu keybind' })
+
+Library.ToggleKeybind = Options.MenuKeybind -- Allows you to have a custom keybind for the menu
+
+ThemeManager:SetLibrary(Library)
+SaveManager:SetLibrary(Library)
+
+SaveManager:IgnoreThemeSettings() 
+
+SaveManager:SetIgnoreIndexes({ 'MenuKeybind' }) 
+
+ThemeManager:SetFolder('developer')
+SaveManager:SetFolder('developer/main')
+
+SaveManager:BuildConfigSection(Tabs['UI Settings']) 
+
+ThemeManager:ApplyToTab(Tabs['UI Settings'])
+
+local OthersSettings = Tabs['UI Settings']:AddRightGroupbox('Others')
+
+OthersSettings:AddInput('uinamechange', {Default = 'Финальная остановка 2 [6.9]', Numeric = false, Finished = false, Text = 'Window Title', Tooltip = 'Changes window title', Placeholder = '. . .'})
+Options.uinamechange:OnChanged(function()
+    Window:SetWindowTitle(Options.uinamechange.Value)
+end)
+
+OthersSettings:AddDivider()
+
+OthersSettings:AddButton('Rejoin', function() 
+    local ts = game:GetService("TeleportService")
+    local p = game:GetService("Players").LocalPlayer
+    ts:Teleport(game.PlaceId, p)
+end)
+
+OthersSettings:AddButton('Copy Game Invite', function() 
+    setclipboard("Roblox.GameLauncher.joinGameInstance("..game.PlaceId..", "..game.JobId.."')")
+end)
